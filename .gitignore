@@ -1,1 +1,14 @@
+# Build output
+web/dist/
+web/node_modules/
+
+# Python
+api/.venv/
+__pycache__/
+*.pyc
+
+# Local scripts (server-specific, not for repo)
+scripts/
+
+# Local docs
 doc/
