@@ -24,6 +24,9 @@ python catan_board_generator.py --cli --seed myCustomSeed
 
 # Keep the classic centre desert
 python catan_board_generator.py --desert-tile middle
+
+# Ultra-balanced board: no two same-resource tiles touch + pips balanced
+python catan_board_generator.py --mode ultra --balance best
 ```
 
 Requires Python 3 with `numpy` and `matplotlib` installed (`matplotlib` is only needed for the GUI, not for `--cli`).
@@ -107,12 +110,39 @@ The JSON includes the seed (so the run is fully reproducible), the desert coordi
 
 The script was renamed `HALAT-CatanBalancer.py` → `catan_board_generator.py` (underscores, so no quoting is needed on the command line).
 
+### 5. Ultra-balanced mode
+
+`--mode ultra` is a stricter generator on top of the classic rules. Two extra guarantees:
+
+1. **No two same-resource tiles ever touch.** Classic only forbids brick/stone clustering and 3+ clusters of wheat/wood/sheep — ultra forbids *any* two tiles of the same resource being neighbours. Random rejection sampling almost never lands such a layout (~1 in 100k), so ultra uses **backtracking** to construct one directly in well under a millisecond for any desert position.
+2. **Pip balance across resources.** "Pips" are the dots under each roll number = the number of dice combinations that roll it (6 and 8 have 5 pips, 2 and 12 have 1). Ultra balances the total pips sitting on each resource so no single resource is systematically richer than another. The fair share per resource is `tile_count × 58 / 18`.
+
+```bash
+python catan_board_generator.py --mode ultra
+python catan_board_generator.py --cli --mode ultra --balance best
+```
+
+#### `--balance` strictness (ultra only)
+
+`--balance` tunes how tightly pips must balance. Ignored in classic mode.
+
+| Value | Pip tolerance | Meaning |
+|-------|---------------|---------|
+| `good` | none | No pip constraint — only the no-touch rule is enforced |
+| `better` *(default)* | ±2 | Pips within ±2 of fair share, and same-count resources spread ≤ 2 apart |
+| `best` | ±1 | Pips within ±1 of fair share, and same-count resources spread ≤ 1 apart |
+
+The balance check has two parts: resources with the same tile count (sheep/wheat/wood as a group of 4, stone/brick as a group of 3) must have pip totals within `tol` of each other, **and** every resource must be within `tol` of its fair-share target.
+
+Ultra is best-effort under a safety cap (`NUMBER_ATTEMPT_CAP`). If it can't hit the strict pip target it keeps the **closest-balanced** valid layout found and warns. Ultra output (GUI/JSON) carries extra metadata: `mode`, `balance`, `balanced` (whether the pip target was met), `pip_totals`, and `pip_targets`.
+
 ---
 
 ## Command-line reference
 
 ```
 python catan_board_generator.py [--cli] [--seed SEED] [--desert-tile {middle,random}]
+                                [--mode {classic,ultra}] [--balance {good,better,best}]
 ```
 
 | Flag | Default | Description |
@@ -120,6 +150,8 @@ python catan_board_generator.py [--cli] [--seed SEED] [--desert-tile {middle,ran
 | `--cli` | off | Print board as JSON to stdout instead of opening the GUI |
 | `--seed SEED` | random | Seed (any text/number) for reproducible generation |
 | `--desert-tile {middle,random}` | `random` | Where the desert is placed |
+| `--mode {classic,ultra}` | `classic` | `ultra` forbids any two same-resource tiles touching + balances pips |
+| `--balance {good,better,best}` | `better` | Pip balance strictness (ultra only; ignored in classic) |
 
 Flags are shared between modes: the GUI also honours `--seed` and `--desert-tile`; `--cli` only switches output from a window to JSON.
 
