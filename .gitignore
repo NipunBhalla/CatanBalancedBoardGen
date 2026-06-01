@@ -1,6 +1,5 @@
 # Build output
-web/dist/
-web/node_modules/
+web/
 
 # Python
 api/.venv/
